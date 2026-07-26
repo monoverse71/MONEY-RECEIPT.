@@ -3,6 +3,7 @@ import { mockDataStore } from "@/lib/mockData";
 import type { Project } from "@/features/projects/types";
 import type { Customer, CustomerSearchField } from "@/features/customers/types";
 import type { ReceiptStatus } from "@/types/database.types";
+import type { ReceiptHistoryRow, ProjectStatistics } from "@/features/receipts/types";
 
 /**
  * DATA SERVICE
@@ -190,4 +191,89 @@ export async function saveReceipt(input: SaveReceiptInput): Promise<void> {
   }));
   const { error: itemsErr } = await supabase.from("receipt_items").insert(rows);
   if (itemsErr) throw itemsErr;
+}
+
+/**
+ * Project-scoped receipt history (requirements 5 & 9): only ever returns
+ * receipts belonging to the given project. Backend-only for now - no
+ * existing screen calls this yet; it's ready for a future receipt-history
+ * view without requiring any further data-layer changes.
+ */
+export async function listReceiptsForProject(projectId: string): Promise<ReceiptHistoryRow[]> {
+  if (!isSupabaseConfigured) {
+    return mockDataStore.listReceiptsForProject(projectId);
+  }
+
+  const supabase = await getSupabaseClient();
+
+  const { data: receiptRows, error: receiptsErr } = await supabase
+    .from("receipts")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("receipt_date", { ascending: false });
+  if (receiptsErr) throw receiptsErr;
+  if (!receiptRows || receiptRows.length === 0) return [];
+
+  const receiptIds = receiptRows.map((r) => r.id);
+  const customerIds = [...new Set(receiptRows.map((r) => r.customer_id))];
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("receipt_items")
+    .select("*")
+    .in("receipt_id", receiptIds);
+  if (itemsErr) throw itemsErr;
+
+  const { data: customerRows, error: customersErr } = await supabase
+    .from("customers")
+    .select("*")
+    .in("id", customerIds);
+  if (customersErr) throw customersErr;
+
+  return receiptRows.map((r) => {
+    const rItems = (items ?? []).filter((it) => it.receipt_id === r.id);
+    const totalUnitPrice = rItems.reduce((s, it) => s + Number(it.total_unit_price), 0);
+    const totalPaid = rItems.reduce((s, it) => s + Number(it.amount_paid), 0);
+    const customer = (customerRows ?? []).find((c) => c.id === r.customer_id);
+    return {
+      id: r.id,
+      receiptNumber: r.receipt_number,
+      receiptDate: r.receipt_date,
+      status: r.status,
+      customerName: customer?.name ?? "Unknown",
+      customerCode: customer?.customer_code ?? "—",
+      totalUnitPrice,
+      totalPaid,
+      totalDue: totalUnitPrice - totalPaid,
+    };
+  });
+}
+
+/**
+ * Project-scoped statistics (requirement 10): every total here is computed
+ * only from records belonging to the given project. Backend-only for now -
+ * ready for a future dashboard/report view without further data-layer work.
+ */
+export async function getProjectStatistics(projectId: string): Promise<ProjectStatistics> {
+  if (!isSupabaseConfigured) {
+    return mockDataStore.getProjectStatistics(projectId);
+  }
+
+  const supabase = await getSupabaseClient();
+
+  const { count: totalCustomers, error: countErr } = await supabase
+    .from("customers")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", projectId);
+  if (countErr) throw countErr;
+
+  const rows = await listReceiptsForProject(projectId);
+
+  return {
+    projectId,
+    totalCustomers: totalCustomers ?? 0,
+    totalReceipts: rows.length,
+    totalCollected: rows.reduce((s, r) => s + r.totalPaid, 0),
+    totalDue: rows.reduce((s, r) => s + r.totalDue, 0),
+    totalUnitPrice: rows.reduce((s, r) => s + r.totalUnitPrice, 0),
+  };
 }

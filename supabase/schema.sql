@@ -212,11 +212,14 @@ create policy "Public write receipt_items" on receipt_items
   for all to anon, authenticated using (true) with check (true);
 
 -- ----------------------------------------------------------------------------
--- 7. SEED DATA (the three projects mentioned in the spec)
+-- 7. SEED DATA (the real project list)
 -- ----------------------------------------------------------------------------
 insert into projects (name, short_code, address, contact_phone)
 values
-  ('Brahmaputra Arch Lake View Tower', 'BALV', 'House #37, Station Road, Dhaka-1205', '+88000-000000'),
-  ('Apon Niketon Commercial', 'ANC', 'Apon Niketon, Dhaka', '+88000-000001'),
-  ('Apon Niketon Residency', 'ANR', 'Apon Niketon, Dhaka', '+88000-000002')
+  ('BRAHMAPUTRO ARCH LAKE VIEW TOWER', 'BALVT', null, null),
+  ('GOYAILKANDI GARDEN CITY', 'GGC', null, null),
+  ('AMLAPARA GARDEN CITY', 'AGC', null, null),
+  ('MASKANDA GARDEN CITY', 'MGC', null, null),
+  ('RAFIQ UDDIN BHUIYAN TOWER', 'RUBT', null, null),
+  ('MASKANDA GARDEN CITY CONSTRUCTION PAYMENT', 'MGCCP', null, null)
 on conflict (name) do nothing;

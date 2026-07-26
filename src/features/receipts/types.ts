@@ -38,3 +38,33 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
   "Upay",
   "Others",
 ];
+
+/**
+ * A single row for a project-scoped receipt history view. Backend-only for
+ * now (see dataService.listReceiptsForProject) - no UI currently consumes
+ * this, per the instruction not to add/change any UI in this pass.
+ */
+export interface ReceiptHistoryRow {
+  id: string;
+  receiptNumber: string;
+  receiptDate: string;
+  status: ReceiptStatus;
+  customerName: string;
+  customerCode: string;
+  totalUnitPrice: number;
+  totalPaid: number;
+  totalDue: number;
+}
+
+/**
+ * Aggregate statistics for exactly one project (requirement 10). Backend-only
+ * for now - see dataService.getProjectStatistics.
+ */
+export interface ProjectStatistics {
+  projectId: string;
+  totalCustomers: number;
+  totalReceipts: number;
+  totalCollected: number;
+  totalDue: number;
+  totalUnitPrice: number;
+}
