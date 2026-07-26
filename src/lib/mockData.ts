@@ -63,7 +63,7 @@ const customers: Customer[] = [
   {
     id: "demo-cust-101",
     project_id: "demo-proj-balv",
-    customer_code: "CUST-101",
+    customer_code: "CUST-001",
     name: "Rafiqul Islam",
     nid: "1990123456789",
     mobile: "01711000101",
@@ -73,7 +73,7 @@ const customers: Customer[] = [
   {
     id: "demo-cust-102",
     project_id: "demo-proj-balv",
-    customer_code: "CUST-102",
+    customer_code: "CUST-002",
     name: "Nusrat Jahan",
     nid: "1988123456123",
     mobile: "01911000102",
@@ -83,7 +83,7 @@ const customers: Customer[] = [
   {
     id: "demo-cust-201",
     project_id: "demo-proj-anc",
-    customer_code: "CUST-201",
+    customer_code: "CUST-001",
     name: "Tanvir Ahmed",
     nid: "1987123456555",
     mobile: "01811000201",
@@ -119,9 +119,9 @@ const receiptItems: MockReceiptItem[] = [
 ];
 
 const sequences: Record<string, { lastReceiptNumber: number; lastCustomerNumber: number }> = {
-  "demo-proj-balv": { lastReceiptNumber: 1, lastCustomerNumber: 102 },
-  "demo-proj-anc": { lastReceiptNumber: 0, lastCustomerNumber: 201 },
-  "demo-proj-anr": { lastReceiptNumber: 0, lastCustomerNumber: 100 },
+  "demo-proj-balv": { lastReceiptNumber: 1, lastCustomerNumber: 2 },
+  "demo-proj-anc": { lastReceiptNumber: 0, lastCustomerNumber: 1 },
+  "demo-proj-anr": { lastReceiptNumber: 0, lastCustomerNumber: 0 },
 };
 
 function delay<T>(value: T, ms = 200): Promise<T> {
@@ -168,10 +168,10 @@ export const mockDataStore = {
   },
 
   async nextCustomerCode(projectId: string): Promise<string> {
-    const seq = sequences[projectId] ?? { lastReceiptNumber: 0, lastCustomerNumber: 100 };
+    const seq = sequences[projectId] ?? { lastReceiptNumber: 0, lastCustomerNumber: 0 };
     seq.lastCustomerNumber += 1;
     sequences[projectId] = seq;
-    return delay(`CUST-${seq.lastCustomerNumber}`);
+    return delay(`CUST-${String(seq.lastCustomerNumber).padStart(3, "0")}`);
   },
 
   async createCustomer(
@@ -200,7 +200,7 @@ export const mockDataStore = {
   },
 
   async nextReceiptNumber(projectId: string): Promise<string> {
-    const seq = sequences[projectId] ?? { lastReceiptNumber: 0, lastCustomerNumber: 100 };
+    const seq = sequences[projectId] ?? { lastReceiptNumber: 0, lastCustomerNumber: 0 };
     seq.lastReceiptNumber += 1;
     sequences[projectId] = seq;
     return delay(`REC-${String(seq.lastReceiptNumber).padStart(6, "0")}`);

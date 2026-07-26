@@ -24,7 +24,7 @@ create table if not exists projects (
 create table if not exists project_sequences (
   project_id           uuid primary key references projects(id) on delete cascade,
   last_receipt_number  integer not null default 0,
-  last_customer_number integer not null default 100  -- so first customer is 101, matches template's CUST-101
+  last_customer_number integer not null default 0  -- first customer is CUST-001
 );
 
 -- Auto-create a sequence row whenever a project is created.
@@ -48,7 +48,7 @@ create trigger trg_create_project_sequence
 create table if not exists customers (
   id            uuid primary key default gen_random_uuid(),
   project_id    uuid not null references projects(id) on delete cascade,
-  customer_code text not null,               -- e.g. "CUST-101", unique within project
+  customer_code text not null,               -- e.g. "CUST-001", unique within project
   name          text not null,
   nid           text,
   mobile        text,
@@ -153,7 +153,7 @@ begin
     raise exception 'Unknown project_id: %', p_project_id;
   end if;
 
-  return 'CUST-' || v_next::text;
+  return 'CUST-' || lpad(v_next::text, 3, '0');
 end;
 $$ language plpgsql;
 
