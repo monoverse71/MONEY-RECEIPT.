@@ -29,12 +29,16 @@ create table if not exists project_sequences (
 
 -- Auto-create a sequence row whenever a project is created.
 create or replace function fn_create_project_sequence()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
   insert into project_sequences (project_id) values (new.id);
   return new;
 end;
-$$ language plpgsql;
+$$;
 
 drop trigger if exists trg_create_project_sequence on projects;
 create trigger trg_create_project_sequence
@@ -122,7 +126,11 @@ create index if not exists idx_receipt_items_receipt on receipt_items(receipt_id
 -- Row-locked increments so concurrent requests never produce duplicates.
 -- ----------------------------------------------------------------------------
 create or replace function next_receipt_number(p_project_id uuid)
-returns text as $$
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
 declare
   v_next integer;
 begin
@@ -137,10 +145,14 @@ begin
 
   return 'REC-' || lpad(v_next::text, 6, '0');
 end;
-$$ language plpgsql;
+$$;
 
 create or replace function next_customer_code(p_project_id uuid)
-returns text as $$
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
 declare
   v_next integer;
 begin
@@ -155,12 +167,20 @@ begin
 
   return 'CUST-' || lpad(v_next::text, 3, '0');
 end;
-$$ language plpgsql;
+$$;
+
+-- Allow the app's roles to actually call these RPCs (function EXECUTE
+-- privilege is separate from table-level RLS policies).
+grant execute on function next_receipt_number(uuid) to anon, authenticated;
+grant execute on function next_customer_code(uuid) to anon, authenticated;
 
 -- ----------------------------------------------------------------------------
 -- 6. ROW LEVEL SECURITY
--- Scaffold policies: any authenticated user can read/write. Tighten this
--- later with per-project staff roles (phase 2).
+-- This app currently has no login/auth flow - it connects using only the
+-- publishable anon key. Policies therefore grant both `anon` and
+-- `authenticated` roles for now, so requests actually succeed instead of
+-- being silently blocked by RLS. Tighten this later with real user accounts
+-- and per-project staff roles (phase 2).
 -- ----------------------------------------------------------------------------
 alter table projects enable row level security;
 alter table project_sequences enable row level security;
@@ -168,28 +188,28 @@ alter table customers enable row level security;
 alter table receipts enable row level security;
 alter table receipt_items enable row level security;
 
-create policy "Authenticated read projects" on projects
-  for select to authenticated using (true);
-create policy "Authenticated write projects" on projects
-  for all to authenticated using (true) with check (true);
+create policy "Public read projects" on projects
+  for select to anon, authenticated using (true);
+create policy "Public write projects" on projects
+  for all to anon, authenticated using (true) with check (true);
 
-create policy "Authenticated read sequences" on project_sequences
-  for select to authenticated using (true);
+create policy "Public read sequences" on project_sequences
+  for select to anon, authenticated using (true);
 
-create policy "Authenticated read customers" on customers
-  for select to authenticated using (true);
-create policy "Authenticated write customers" on customers
-  for all to authenticated using (true) with check (true);
+create policy "Public read customers" on customers
+  for select to anon, authenticated using (true);
+create policy "Public write customers" on customers
+  for all to anon, authenticated using (true) with check (true);
 
-create policy "Authenticated read receipts" on receipts
-  for select to authenticated using (true);
-create policy "Authenticated write receipts" on receipts
-  for all to authenticated using (true) with check (true);
+create policy "Public read receipts" on receipts
+  for select to anon, authenticated using (true);
+create policy "Public write receipts" on receipts
+  for all to anon, authenticated using (true) with check (true);
 
-create policy "Authenticated read receipt_items" on receipt_items
-  for select to authenticated using (true);
-create policy "Authenticated write receipt_items" on receipt_items
-  for all to authenticated using (true) with check (true);
+create policy "Public read receipt_items" on receipt_items
+  for select to anon, authenticated using (true);
+create policy "Public write receipt_items" on receipt_items
+  for all to anon, authenticated using (true) with check (true);
 
 -- ----------------------------------------------------------------------------
 -- 7. SEED DATA (the three projects mentioned in the spec)

@@ -10,8 +10,8 @@ if (!isSupabaseConfigured) {
   // eslint-disable-next-line no-console
   console.warn(
     "Supabase env vars are missing. Running in local demo mode " +
-      "(copy .env.example to .env, or set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY " +
-      "as repo secrets for the GitHub Actions build, to use the real database)."
+      "(copy .env.example to .env for local dev, or set VITE_SUPABASE_URL / " +
+      "VITE_SUPABASE_ANON_KEY as environment variables in your Vercel project settings)."
   );
 }
 
