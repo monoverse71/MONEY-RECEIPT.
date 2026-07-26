@@ -59,70 +59,11 @@ const projects: Project[] = [
   },
 ];
 
-const customers: Customer[] = [
-  {
-    id: "demo-cust-101",
-    project_id: "demo-proj-balv",
-    customer_code: "CUST-001",
-    name: "Rafiqul Islam",
-    nid: "1990123456789",
-    mobile: "01711000101",
-    nominee_name: "Shirin Islam",
-    nominee_nid: "1992123456790",
-  },
-  {
-    id: "demo-cust-102",
-    project_id: "demo-proj-balv",
-    customer_code: "CUST-002",
-    name: "Nusrat Jahan",
-    nid: "1988123456123",
-    mobile: "01911000102",
-    nominee_name: "Kamal Hossain",
-    nominee_nid: "1985123456124",
-  },
-  {
-    id: "demo-cust-201",
-    project_id: "demo-proj-anc",
-    customer_code: "CUST-001",
-    name: "Tanvir Ahmed",
-    nid: "1987123456555",
-    mobile: "01811000201",
-    nominee_name: "Farida Ahmed",
-    nominee_nid: "1989123456556",
-  },
-];
-
-const receipts: MockReceipt[] = [
-  {
-    id: "demo-rec-1",
-    project_id: "demo-proj-balv",
-    customer_id: "demo-cust-101",
-    receipt_number: "REC-000001",
-    receipt_date: "2026-05-10",
-    status: "final",
-    note: "All payments are non-refundable and subject to clearance of cheque/transfer.",
-    prepared_by: "Front Desk",
-    authorized_by: "Sales Manager",
-  },
-];
-
-const receiptItems: MockReceiptItem[] = [
-  {
-    id: "demo-rec-item-1",
-    receipt_id: "demo-rec-1",
-    sl: 1,
-    description: "1st Installment - Booking Advance for Unit#",
-    payment_method: "Bank Transfer",
-    total_unit_price: 500000,
-    amount_paid: 250000,
-  },
-];
-
-const sequences: Record<string, { lastReceiptNumber: number; lastCustomerNumber: number }> = {
-  "demo-proj-balv": { lastReceiptNumber: 1, lastCustomerNumber: 2 },
-  "demo-proj-anc": { lastReceiptNumber: 0, lastCustomerNumber: 1 },
-  "demo-proj-anr": { lastReceiptNumber: 0, lastCustomerNumber: 0 },
-};
+// No seeded customers, receipts, or line items - the demo store starts
+// genuinely empty, exactly like a fresh installation.
+const customers: Customer[] = [];
+const receipts: MockReceipt[] = [];
+const receiptItems: MockReceiptItem[] = [];
 
 function delay<T>(value: T, ms = 200): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -130,6 +71,25 @@ function delay<T>(value: T, ms = 200): Promise<T> {
 
 function matches(haystack: string | null, needle: string): boolean {
   return (haystack ?? "").toLowerCase().includes(needle.toLowerCase());
+}
+
+/**
+ * Derives the next sequence number by scanning the actual in-memory records
+ * for this project - never from a separately-tracked counter. This is what
+ * requirement 5 calls for: the sequence is always calculated from the real
+ * data (or empty store), so it can never drift out of sync with what's
+ * actually there, and it's automatically correct after every save.
+ */
+function nextSequenceNumber(existingCodes: string[], prefix: string): number {
+  let max = 0;
+  for (const code of existingCodes) {
+    const match = code.match(new RegExp(`^${prefix}-(\\d+)$`));
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  return max + 1;
 }
 
 export const mockDataStore = {
@@ -168,10 +128,11 @@ export const mockDataStore = {
   },
 
   async nextCustomerCode(projectId: string): Promise<string> {
-    const seq = sequences[projectId] ?? { lastReceiptNumber: 0, lastCustomerNumber: 0 };
-    seq.lastCustomerNumber += 1;
-    sequences[projectId] = seq;
-    return delay(`CUST-${String(seq.lastCustomerNumber).padStart(3, "0")}`);
+    const existingCodes = customers
+      .filter((c) => c.project_id === projectId)
+      .map((c) => c.customer_code);
+    const next = nextSequenceNumber(existingCodes, "CUST");
+    return delay(`CUST-${String(next).padStart(3, "0")}`);
   },
 
   async createCustomer(
@@ -200,10 +161,11 @@ export const mockDataStore = {
   },
 
   async nextReceiptNumber(projectId: string): Promise<string> {
-    const seq = sequences[projectId] ?? { lastReceiptNumber: 0, lastCustomerNumber: 0 };
-    seq.lastReceiptNumber += 1;
-    sequences[projectId] = seq;
-    return delay(`REC-${String(seq.lastReceiptNumber).padStart(6, "0")}`);
+    const existingNumbers = receipts
+      .filter((r) => r.project_id === projectId)
+      .map((r) => r.receipt_number);
+    const next = nextSequenceNumber(existingNumbers, "REC");
+    return delay(`REC-${String(next).padStart(6, "0")}`);
   },
 
   async insertReceipt(receipt: Omit<MockReceipt, "id">): Promise<MockReceipt> {
