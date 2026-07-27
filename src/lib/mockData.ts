@@ -1,6 +1,7 @@
 import type { Project } from "@/features/projects/types";
 import type { Customer, CustomerSearchField } from "@/features/customers/types";
-import type { ReceiptHistoryRow, ProjectStatistics } from "@/features/receipts/types";
+import type { ReceiptHistoryRow, ProjectStatistics, ReceiptItem } from "@/features/receipts/types";
+import type { PaymentMethod } from "@/types/database.types";
 
 /**
  * LOCAL DEMO DATA LAYER
@@ -254,5 +255,32 @@ export const mockDataStore = {
       totalDue: rows.reduce((s, r) => s + (r.totalUnitPrice - r.totalPaid), 0),
       totalUnitPrice: rows.reduce((s, r) => s + r.totalUnitPrice, 0),
     });
+  },
+
+  /**
+   * Restores a customer's most recently saved receipt items exactly as
+   * stored - no recalculation, no defaults. Returns null if this customer
+   * has no saved receipt yet.
+   */
+  async getLatestReceiptItemsForCustomer(customerId: string): Promise<ReceiptItem[] | null> {
+    const customerReceipts = receipts
+      .filter((r) => r.customer_id === customerId)
+      .sort((a, b) => b.receipt_date.localeCompare(a.receipt_date));
+    const latest = customerReceipts[0];
+    if (!latest) return delay(null);
+
+    const items = receiptItems
+      .filter((it) => it.receipt_id === latest.id)
+      .sort((a, b) => a.sl - b.sl)
+      .map((it) => ({
+        id: it.id,
+        sl: it.sl,
+        description: it.description,
+        paymentMethod: it.payment_method as PaymentMethod,
+        totalUnitPrice: it.total_unit_price,
+        amountPaid: it.amount_paid,
+      }));
+
+    return delay(items.length > 0 ? items : null);
   },
 };

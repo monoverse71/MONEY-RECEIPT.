@@ -2,8 +2,8 @@ import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { mockDataStore } from "@/lib/mockData";
 import type { Project } from "@/features/projects/types";
 import type { Customer, CustomerSearchField } from "@/features/customers/types";
-import type { ReceiptStatus } from "@/types/database.types";
-import type { ReceiptHistoryRow, ProjectStatistics } from "@/features/receipts/types";
+import type { ReceiptStatus, PaymentMethod } from "@/types/database.types";
+import type { ReceiptHistoryRow, ProjectStatistics, ReceiptItem } from "@/features/receipts/types";
 
 /**
  * DATA SERVICE
@@ -276,4 +276,49 @@ export async function getProjectStatistics(projectId: string): Promise<ProjectSt
     totalDue: rows.reduce((s, r) => s + r.totalDue, 0),
     totalUnitPrice: rows.reduce((s, r) => s + r.totalUnitPrice, 0),
   };
+}
+
+/**
+ * Restores a customer's most recently saved receipt's payment breakdown
+ * exactly as it was stored - every description, payment method, unit price,
+ * and paid amount is read directly from the database, never recalculated
+ * and never replaced with a default. Returns null if this customer has no
+ * saved receipt yet (nothing to restore).
+ */
+export async function getLatestReceiptItemsForCustomer(
+  customerId: string
+): Promise<ReceiptItem[] | null> {
+  if (!isSupabaseConfigured) {
+    return mockDataStore.getLatestReceiptItemsForCustomer(customerId);
+  }
+
+  const supabase = await getSupabaseClient();
+
+  const { data: latestReceipt, error: receiptErr } = await supabase
+    .from("receipts")
+    .select("id")
+    .eq("customer_id", customerId)
+    .order("receipt_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (receiptErr) throw receiptErr;
+  if (!latestReceipt) return null;
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("receipt_items")
+    .select("*")
+    .eq("receipt_id", latestReceipt.id)
+    .order("sl", { ascending: true });
+  if (itemsErr) throw itemsErr;
+  if (!items || items.length === 0) return null;
+
+  return items.map((it) => ({
+    id: it.id,
+    sl: it.sl,
+    description: it.description,
+    paymentMethod: it.payment_method as PaymentMethod,
+    totalUnitPrice: Number(it.total_unit_price),
+    amountPaid: Number(it.amount_paid),
+  }));
 }

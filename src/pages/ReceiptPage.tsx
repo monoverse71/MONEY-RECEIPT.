@@ -12,7 +12,7 @@ import { useReceiptNumber } from "@/features/receipts/hooks/useReceiptNumber";
 import { todayISO } from "@/lib/utils";
 import type { Customer } from "@/features/customers/types";
 import type { ReceiptFormState } from "@/features/receipts/types";
-import { saveReceipt, isSupabaseConfigured } from "@/lib/dataService";
+import { saveReceipt, isSupabaseConfigured, getLatestReceiptItemsForCustomer } from "@/lib/dataService";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { focusNextInputOnEnter } from "@/lib/focusNavigation";
 
@@ -74,7 +74,7 @@ export default function ReceiptPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleSelectCustomer(customer: Customer) {
+  async function handleSelectCustomer(customer: Customer) {
     setForm((prev) => ({
       ...prev,
       customerId: customer.id,
@@ -85,6 +85,23 @@ export default function ReceiptPage() {
       nomineeName: customer.nominee_name ?? "",
       nomineeNid: customer.nominee_nid ?? "",
     }));
+
+    // Restore this customer's most recently saved payment breakdown exactly
+    // as stored - every description, payment method, unit price, and paid
+    // amount comes straight from the database, never recalculated or
+    // replaced with a default value.
+    try {
+      const savedItems = await getLatestReceiptItemsForCustomer(customer.id);
+      if (savedItems && savedItems.length > 0) {
+        setForm((prev) => ({ ...prev, items: savedItems }));
+      }
+    } catch (err) {
+      setSaveMessage(
+        err instanceof Error
+          ? `Selected customer, but couldn't restore their saved payment history: ${err.message}`
+          : "Selected customer, but couldn't restore their saved payment history."
+      );
+    }
   }
 
   async function persistReceipt(status: "draft" | "final") {
