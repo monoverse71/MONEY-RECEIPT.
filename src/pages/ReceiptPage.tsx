@@ -14,6 +14,7 @@ import type { Customer } from "@/features/customers/types";
 import type { ReceiptFormState } from "@/features/receipts/types";
 import { saveReceipt, isSupabaseConfigured } from "@/lib/dataService";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
+import { focusNextInputOnEnter } from "@/lib/focusNavigation";
 
 const EMPTY_FORM: ReceiptFormState = {
   receiptNumber: "",
@@ -178,7 +179,7 @@ export default function ReceiptPage() {
 
       <main className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 px-6 lg:grid-cols-2">
         {/* LEFT: editable form */}
-        <div className="no-print space-y-4">
+        <div className="no-print space-y-4" onKeyDown={focusNextInputOnEnter}>
           <ReceiptToolbar
             status={form.status}
             saving={saving}
