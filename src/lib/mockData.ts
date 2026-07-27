@@ -283,4 +283,32 @@ export const mockDataStore = {
 
     return delay(items.length > 0 ? items : null);
   },
+
+  /**
+   * "Clear Current Project Data" (mock mirror): removes only this project's
+   * customers, receipts, and receipt items from the in-memory store. Since
+   * mock numbering is always derived from the actual records that exist
+   * (see nextSequenceNumber above), removing them is sufficient - the next
+   * customer/receipt generated for this project will naturally be
+   * CUST-001 / REC-000001 again, with no separate counter to reset. Other
+   * projects' arrays are untouched (every removal is filtered by
+   * project_id), and the project itself is never removed.
+   */
+  async clearProjectData(projectId: string): Promise<void> {
+    const projectReceiptIds = new Set(
+      receipts.filter((r) => r.project_id === projectId).map((r) => r.id)
+    );
+
+    for (let i = receiptItems.length - 1; i >= 0; i--) {
+      if (projectReceiptIds.has(receiptItems[i].receipt_id)) receiptItems.splice(i, 1);
+    }
+    for (let i = receipts.length - 1; i >= 0; i--) {
+      if (receipts[i].project_id === projectId) receipts.splice(i, 1);
+    }
+    for (let i = customers.length - 1; i >= 0; i--) {
+      if (customers[i].project_id === projectId) customers.splice(i, 1);
+    }
+
+    return delay(undefined);
+  },
 };

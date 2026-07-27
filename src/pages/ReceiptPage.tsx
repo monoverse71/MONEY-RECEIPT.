@@ -12,7 +12,12 @@ import { useReceiptNumber } from "@/features/receipts/hooks/useReceiptNumber";
 import { todayISO } from "@/lib/utils";
 import type { Customer } from "@/features/customers/types";
 import type { ReceiptFormState } from "@/features/receipts/types";
-import { saveReceipt, isSupabaseConfigured, getLatestReceiptItemsForCustomer } from "@/lib/dataService";
+import {
+  saveReceipt,
+  isSupabaseConfigured,
+  getLatestReceiptItemsForCustomer,
+  clearProjectData,
+} from "@/lib/dataService";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { focusNextInputOnEnter } from "@/lib/focusNavigation";
 
@@ -50,7 +55,7 @@ export default function ReceiptPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  const { results, searching, search, createCustomer } = useCustomers(projectId);
+  const { results, searching, search, createCustomer, reset: resetCustomerSearch } = useCustomers(projectId);
   const { reserveNext } = useReceiptNumber();
 
   const activeProject = useMemo(
@@ -176,6 +181,38 @@ export default function ReceiptPage() {
     setSaveMessage(null);
   }
 
+  async function handleClearProjectData() {
+    if (!projectId) throw new Error("Select a project first.");
+
+    const clearedProjectName = activeProject?.name ?? "this project";
+
+    // 1. Atomically delete this project's customers/receipts/items and reset
+    //    its numbering (see clearProjectData in dataService.ts).
+    await clearProjectData(projectId);
+
+    // 2. Refresh the customer list - clear any now-deleted customers that
+    //    might still be showing in search results.
+    resetCustomerSearch();
+
+    // 3. Clear the receipt form.
+    setForm(EMPTY_FORM);
+    setCustomerMode("new");
+
+    // 4. Regenerate a fresh receipt number now that numbering has been reset
+    //    (this will be REC-000001, using the exact same reservation function
+    //    already used everywhere else).
+    const next = await reserveNext(projectId);
+    if (next) {
+      setForm((prev) => ({ ...prev, receiptNumber: next }));
+    }
+
+    // 5. Show a success message via the same banner already used for
+    //    save confirmations/errors.
+    setSaveMessage(
+      `All data for "${clearedProjectName}" has been cleared. Numbering reset to CUST-001 / REC-000001.`
+    );
+  }
+
   function handlePrint() {
     window.print();
   }
@@ -206,6 +243,8 @@ export default function ReceiptPage() {
             onPrint={handlePrint}
             onDownloadPdf={handlePrint}
             onClear={handleClear}
+            projectName={activeProject?.name ?? null}
+            onClearProjectData={handleClearProjectData}
           />
 
           {saveMessage && (

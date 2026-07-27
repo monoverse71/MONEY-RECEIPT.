@@ -112,6 +112,10 @@ export interface Database {
         Args: { p_project_id: string };
         Returns: string;
       };
+      clear_project_data: {
+        Args: { p_project_id: string };
+        Returns: void;
+      };
     };
   };
 }

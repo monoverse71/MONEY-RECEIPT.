@@ -322,3 +322,23 @@ export async function getLatestReceiptItemsForCustomer(
     amountPaid: Number(it.amount_paid),
   }));
 }
+
+/**
+ * "Clear Current Project Data": permanently deletes every customer, receipt,
+ * and payment record belonging to ONE project, then resets that project's
+ * numbering back to CUST-001 / REC-000001. Never deletes the project itself
+ * and never touches any other project's data.
+ *
+ * The real-backend path calls a single Postgres function (clear_project_data,
+ * see supabase/enable_clear_project_data.sql) so the whole operation is one
+ * atomic transaction - either every step succeeds or none of them do.
+ */
+export async function clearProjectData(projectId: string): Promise<void> {
+  if (!isSupabaseConfigured) {
+    return mockDataStore.clearProjectData(projectId);
+  }
+
+  const supabase = await getSupabaseClient();
+  const { error } = await supabase.rpc("clear_project_data", { p_project_id: projectId });
+  if (error) throw error;
+}

@@ -56,5 +56,14 @@ export function useCustomers(projectId: string | null) {
     return createCustomerService(projectId, input);
   }
 
-  return { results, searching, error, search, createCustomer };
+  // Explicitly clears results/error and invalidates any in-flight search.
+  // Used after operations that change what customers exist (e.g. clearing a
+  // project's data) so stale/now-deleted customers can't linger on screen.
+  function reset() {
+    latestRequestId.current += 1;
+    setResults([]);
+    setError(null);
+  }
+
+  return { results, searching, error, search, createCustomer, reset };
 }

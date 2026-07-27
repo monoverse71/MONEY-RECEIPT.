@@ -2,6 +2,7 @@ import { Download, Eraser, Printer, Save, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ReceiptStatus } from "@/types/database.types";
+import { ClearProjectDataDialog } from "@/components/ClearProjectDataDialog";
 
 interface ReceiptToolbarProps {
   status: ReceiptStatus;
@@ -12,6 +13,8 @@ interface ReceiptToolbarProps {
   onPrint: () => void;
   onDownloadPdf: () => void;
   onClear: () => void;
+  projectName: string | null;
+  onClearProjectData: () => Promise<void>;
 }
 
 const STATUS_VARIANT: Record<ReceiptStatus, "warning" | "success" | "destructive"> = {
@@ -29,6 +32,8 @@ export function ReceiptToolbar({
   onPrint,
   onDownloadPdf,
   onClear,
+  projectName,
+  onClearProjectData,
 }: ReceiptToolbarProps) {
   return (
     <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-md border bg-white p-3">
@@ -58,6 +63,7 @@ export function ReceiptToolbar({
         <Button size="sm" variant="ghost" onClick={onClear}>
           <Eraser /> Clear Form
         </Button>
+        <ClearProjectDataDialog projectName={projectName} onConfirm={onClearProjectData} />
       </div>
     </div>
   );
